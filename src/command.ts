@@ -1,9 +1,9 @@
-import {
-    CommandInteraction,
-    ChatInputApplicationCommandData,
-    Client,
-} from 'discord.js'
+import { CommandInteraction, ChatInputApplicationCommandData } from 'discord.js'
+import { BotInstance } from './bot'
 
 export interface Command extends ChatInputApplicationCommandData {
-    run: (client: Client, interaction: CommandInteraction) => void
+    run: (
+        botInstance: BotInstance,
+        interaction: CommandInteraction
+    ) => Promise<void>
 }

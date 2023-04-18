@@ -3,8 +3,14 @@ import ready from './listeners/ready'
 import interactionCreate from './listeners/interactionCreate'
 import { initManager } from './music'
 import dotenv from 'dotenv'
+import { Manager } from '@lavacord/discord.js'
 
 console.log('MusicBot is starting...')
+
+export type BotInstance = {
+    discordClient: Client
+    musicManager: Manager
+}
 
 if (!process.env.ENVIRONMENT || process.env.ENVIRONMENT === 'dev') {
     dotenv.config()
@@ -20,10 +26,15 @@ async function start() {
         ],
     })
 
-    ready(client)
-    interactionCreate(client)
+    const manager = await initManager(client)
 
-    await initManager(client)
+    const botInstance: BotInstance = {
+        discordClient: client,
+        musicManager: manager,
+    }
+
+    ready(botInstance)
+    interactionCreate(botInstance)
 
     client.login(process.env.DISCORD_TOKEN)
 }

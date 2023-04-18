@@ -1,16 +1,21 @@
-import { CommandInteraction, Client, Interaction } from 'discord.js'
+import { CommandInteraction, Interaction } from 'discord.js'
 import { Commands } from '../commands'
+import { BotInstance } from '../bot'
+import { UNKNOWN_ERROR } from '../errors'
 
-export default (client: Client): void => {
-    client.on('interactionCreate', async (interaction: Interaction) => {
-        if (interaction.isCommand() || interaction.isContextMenuCommand()) {
-            await handleSlashCommand(client, interaction)
+export default (botInstance: BotInstance): void => {
+    botInstance.discordClient.on(
+        'interactionCreate',
+        async (interaction: Interaction) => {
+            if (interaction.isCommand() || interaction.isContextMenuCommand()) {
+                await handleSlashCommand(botInstance, interaction)
+            }
         }
-    })
+    )
 }
 
 const handleSlashCommand = async (
-    client: Client,
+    botInstance: BotInstance,
     interaction: CommandInteraction
 ): Promise<void> => {
     const slashCommand = Commands.find(
@@ -21,7 +26,11 @@ const handleSlashCommand = async (
         return
     }
 
-    await interaction.deferReply()
+    try {
+        await interaction.deferReply()
 
-    slashCommand.run(client, interaction)
+        await slashCommand.run(botInstance, interaction)
+    } catch (e) {
+        console.error(UNKNOWN_ERROR, e)
+    }
 }

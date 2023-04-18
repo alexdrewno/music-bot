@@ -1,14 +1,17 @@
-import { Client } from 'discord.js'
 import { Commands } from '../commands'
+import { BotInstance } from '../bot'
 
-export default (client: Client): void => {
-    client.on('ready', async () => {
-        if (!client.user || !client.application) {
+export default (botInstance: BotInstance): void => {
+    botInstance.discordClient.on('ready', async () => {
+        if (
+            !botInstance.discordClient.user ||
+            !botInstance.discordClient.application
+        ) {
             return
         }
 
-        await client.application.commands.set(Commands)
+        await botInstance.discordClient.application.commands.set(Commands)
 
-        console.log(`${client.user.username} is online`)
+        console.log(`${botInstance.discordClient.user.username} is online`)
     })
 }

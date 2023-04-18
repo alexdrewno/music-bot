@@ -5,15 +5,9 @@ import {
     GuildMember,
 } from 'discord.js'
 import { Command } from '../command'
-import {
-    SONG_QUEUE,
-    addSongToQueue,
-    clearQueue,
-    playNextSong,
-    searchSongs,
-    stopPlayer,
-} from '../music'
+import { addSongToQueue, searchSongs, songQueue } from '../music'
 import { TrackData } from 'lavacord'
+import { BotInstance } from '../bot'
 
 export const Play: Command = {
     name: 'play',
@@ -27,10 +21,13 @@ export const Play: Command = {
             required: true,
         },
     ],
-    run: async (client: any, interaction: CommandInteraction) => {
-        const searchQuery = interaction.options.data[0].value
+    run: async (botInstance: BotInstance, interaction: CommandInteraction) => {
+        const searchQuery = interaction.options.data[0].value as string
 
-        const trackResult = await searchSongs(client.manager, searchQuery)
+        const trackResult = await searchSongs(
+            botInstance.musicManager,
+            searchQuery
+        )
         if (!trackResult) {
             const content =
                 'Could not find song for search query: ' + searchQuery
@@ -44,13 +41,15 @@ export const Play: Command = {
 
         const member = interaction.member as GuildMember
 
-        if (member.voice && member.voice.channelId) {
-            await addSongToQueue(
-                client.manager,
-                interaction.guildId,
-                member.voice.channelId,
-                trackData
-            )
+        if (member.voice && member.voice.channelId && interaction.guildId) {
+            const addSongParams = {
+                manager: botInstance.musicManager,
+                guildId: interaction.guildId,
+                channelId: member.voice.channelId,
+                trackData,
+            }
+
+            await addSongToQueue(addSongParams)
         } else {
             const content = 'User must be in a channel.'
             await interaction.followUp({
@@ -65,119 +64,15 @@ export const Play: Command = {
             'Added to queue: ' +
             trackData.info.title +
             '\n\nCurrent queue:\n' +
-            SONG_QUEUE.map((song) => {
-                return song.info.title
-            }).join('\n')
+            songQueue
+                .map((song) => {
+                    return song.info.title
+                })
+                .join('\n')
 
         await interaction.followUp({
             ephemeral: true,
             content,
         })
-    },
-}
-
-export const Skip: Command = {
-    name: 'skip',
-    description: 'Skip the current song',
-    type: ApplicationCommandType.ChatInput,
-    run: async (client: any, interaction: CommandInteraction) => {
-        if (!SONG_QUEUE.length) {
-            const content =
-                'MusicBot is currently not playing. To add a song to queue, use /play'
-
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        }
-
-        const member = interaction.member as GuildMember
-
-        if (member.voice && member.voice.channelId) {
-            const skippedSong = await playNextSong(
-                client.manager,
-                interaction.guildId,
-                member.voice.channelId
-            )
-
-            const content = 'Skipped song: ' + skippedSong?.info.title
-
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        } else {
-            const content = 'User must be in a channel.'
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        }
-    },
-}
-
-export const Clear: Command = {
-    name: 'clear',
-    description: 'Clears the queue',
-    type: ApplicationCommandType.ChatInput,
-    run: async (client: any, interaction: CommandInteraction) => {
-        if (!SONG_QUEUE.length) {
-            const content =
-                'The queue is already empty. To add a song to queue, use /play'
-
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        }
-
-        const member = interaction.member as GuildMember
-
-        if (member.voice && member.voice.channelId) {
-            clearQueue()
-
-            const content = 'The queue has been cleared'
-
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        } else {
-            const content = 'User must be in a channel'
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        }
-    },
-}
-
-export const Stop: Command = {
-    name: 'stop',
-    description: 'Stops MusicBot from playing and clears the queue',
-    type: ApplicationCommandType.ChatInput,
-    run: async (client: any, interaction: CommandInteraction) => {
-        const member = interaction.member as GuildMember
-
-        if (member.voice && member.voice.channelId) {
-            await stopPlayer(
-                client.manager,
-                interaction.guildId,
-                member.voice.channelId
-            )
-
-            const content = 'MusicBot has stopped'
-
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        } else {
-            const content = 'User must be in a channel'
-            await interaction.followUp({
-                ephemeral: true,
-                content,
-            })
-        }
     },
 }

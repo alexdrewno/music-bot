@@ -1,14 +1,38 @@
-import { Client, WebSocketShard } from 'discord.js'
-import { Rest, TrackData } from 'lavacord'
+import { Client } from 'discord.js'
+import { Rest, TrackData, LavalinkEvent } from 'lavacord'
 import { Manager } from '@lavacord/discord.js'
+import {
+    LAVALINK_HOST,
+    LAVALINK_NODE_ID,
+    LAVALINK_PASSWORD,
+    LAVALINK_PORT,
+} from './config/lavalink'
 
-export let SONG_QUEUE: TrackData[] = []
+export let songQueue: TrackData[] = []
 const DEFAULT_VOLUME = 60
 
-export async function initManager(client: any) {
+export type AddSongParams = {
+    manager: Manager
+    guildId: string
+    channelId: string
+    trackData: TrackData
+}
+
+export type ManagerParams = {
+    manager: Manager
+    guildId: string
+    channelId: string
+}
+
+export async function initManager(client: Client) {
     // Define the nodes array as an example
     const nodes = [
-        { id: '1', host: 'localhost', port: 2333, password: 'youshallnotpass' },
+        {
+            id: LAVALINK_NODE_ID,
+            host: LAVALINK_HOST,
+            port: LAVALINK_PORT,
+            password: LAVALINK_PASSWORD,
+        },
     ]
 
     const manager = new Manager(client, nodes, { user: '1096889907185717288' })
@@ -21,10 +45,10 @@ export async function initManager(client: any) {
         console.error(error, node)
     })
 
-    client.manager = manager
+    return manager
 }
 
-export async function searchSongs(manager: any, search: any) {
+export async function searchSongs(manager: Manager, search: string) {
     // This gets the best node available, what I mean by that is the idealNodes getter will filter all the connected nodes and then sort them from best to least beast.
     try {
         const ytSearch = 'ytsearch:' + search
@@ -42,33 +66,33 @@ export async function searchSongs(manager: any, search: any) {
     }
 }
 
-export async function startPlayer(
-    manager: any,
-    guildId: string,
-    channelId: string
-) {
+export async function startPlayer({
+    manager,
+    guildId,
+    channelId,
+}: ManagerParams) {
     try {
         const player = await manager.join({
-            guild: guildId, // Guild id
-            channel: channelId, // Channel id
-            node: '1', // lavalink node id, based on array of nodes
+            guild: guildId,
+            channel: channelId,
+            node: LAVALINK_NODE_ID,
         })
 
-        await player.play(SONG_QUEUE[0].track, {
+        await player.play(songQueue[0].track, {
             volume: DEFAULT_VOLUME,
         })
 
         player.once('error', (error: unknown) => console.error(error))
-        player.once('end', async (data: any) => {
+        player.once('end', async (data: LavalinkEvent) => {
             if (data.type === 'TrackEndEvent' && data.reason === 'REPLACED')
                 return // Ignore REPLACED reason to prevent skip loops
 
             // Remove the song from queue
-            SONG_QUEUE = SONG_QUEUE.slice(1)
+            songQueue = songQueue.slice(1)
 
             // If there are still songs in the queue, play the next
-            if (SONG_QUEUE.length) {
-                await player.play(SONG_QUEUE[0].track, {
+            if (songQueue.length) {
+                await player.play(songQueue[0].track, {
                     volume: DEFAULT_VOLUME,
                 })
             } else {
@@ -81,63 +105,94 @@ export async function startPlayer(
     }
 }
 
-export async function addSongToQueue(
-    manager: any,
-    guildId: any,
-    channelId: any,
-    trackData: TrackData
-) {
-    SONG_QUEUE.push(trackData)
-    console.log('CURRENT QUEUE: ', SONG_QUEUE)
-    if (SONG_QUEUE.length === 1) {
-        await startPlayer(manager, guildId, channelId)
+export async function addSongToQueue({
+    manager,
+    guildId,
+    channelId,
+    trackData,
+}: AddSongParams) {
+    songQueue.push(trackData)
+    if (songQueue.length === 1) {
+        const startPlayerParams = { manager, guildId, channelId }
+        await startPlayer(startPlayerParams)
     }
 }
 
-export async function playNextSong(
-    manager: any,
-    guildId: any,
-    channelId: string
-): Promise<TrackData | undefined> {
-    if (!SONG_QUEUE.length) return
+export async function playNextSong({
+    manager,
+    guildId,
+    channelId,
+}: ManagerParams): Promise<TrackData | undefined> {
+    if (!songQueue.length) return
 
     const player = await manager.join({
-        guild: guildId, // Guild id
-        channel: channelId, // Channel id
-        node: '1', // lavalink node id, based on array of nodes
+        guild: guildId,
+        channel: channelId,
+        node: LAVALINK_NODE_ID,
     })
 
-    const songToSkip = SONG_QUEUE[0]
+    const songToSkip = songQueue[0]
+
+    // Go to the end of the song
+    await player.seek(songQueue[0].info.length)
+
+    // Added a pause so the player does not leave right away if no other songs
+    await player.pause(true)
+
     // Remove the song from queue
-    SONG_QUEUE = SONG_QUEUE.slice(1)
+    songQueue = songQueue.slice(1)
 
     // If there are still songs in the queue, play the next
-    if (SONG_QUEUE.length) {
-        await player.play(SONG_QUEUE[0].track, {
+    if (songQueue.length) {
+        console.log(songQueue[0])
+        await player.play(songQueue[0].track, {
             volume: DEFAULT_VOLUME,
         })
-    } else {
-        await player.stop()
     }
 
     return songToSkip
 }
 
-export function clearQueue() {
-    SONG_QUEUE = []
-}
-
-export async function stopPlayer(
-    manager: any,
-    guildId: any,
-    channelId: string
-) {
+export async function clearQueue({
+    manager,
+    guildId,
+    channelId,
+}: ManagerParams) {
     const player = await manager.join({
-        guild: guildId, // Guild id
-        channel: channelId, // Channel id
-        node: '1', // lavalink node id, based on array of nodes
+        guild: guildId,
+        channel: channelId,
+        node: LAVALINK_NODE_ID,
     })
 
+    // Go to the end of the song
+    await player.seek(songQueue[0].info.length)
+
+    // Added a pause so the player does not leave right away if no other songs
+    await player.pause(true)
+
+    songQueue = []
+}
+
+export async function stopPlayer({
+    manager,
+    guildId,
+    channelId,
+}: ManagerParams) {
+    const player = await manager.join({
+        guild: guildId,
+        channel: channelId,
+        node: LAVALINK_NODE_ID,
+    })
+
+    const clearQueueParams = {
+        manager,
+        guildId,
+        channelId,
+    }
+
+    if (songQueue.length) {
+        clearQueue(clearQueueParams)
+    }
+
     await player.stop()
-    clearQueue()
 }
