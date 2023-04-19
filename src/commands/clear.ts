@@ -6,6 +6,8 @@ import {
 import { Command } from '../command'
 import { songQueue, clearQueue } from '../music'
 import { BotInstance } from '../bot'
+import { getErrorEmbed, getSuccessEmbed } from '../embeds'
+import { USER_MUST_BE_IN_CHANNEL } from '../errors'
 
 export const Clear: Command = {
     name: 'clear',
@@ -13,12 +15,13 @@ export const Clear: Command = {
     type: ApplicationCommandType.ChatInput,
     run: async (botInstance: BotInstance, interaction: CommandInteraction) => {
         if (!songQueue.length) {
-            const content =
+            const description =
                 'The queue is already empty. To add a song to queue, use /play'
+            const errorEmbed = getErrorEmbed(description)
 
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [errorEmbed],
             })
         }
 
@@ -28,22 +31,23 @@ export const Clear: Command = {
             const clearQueueParams = {
                 manager: botInstance.musicManager,
                 guildId: interaction.guildId,
-                channelId: member.voice.channelId,
             }
 
             await clearQueue(clearQueueParams)
 
-            const content = 'The queue has been cleared'
+            const description = 'The queue has been cleared'
+            const successEmbed = getSuccessEmbed(description)
 
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [successEmbed],
             })
         } else {
-            const content = 'User must be in a channel'
+            const errorEmbed = getErrorEmbed(USER_MUST_BE_IN_CHANNEL)
+
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [errorEmbed],
             })
         }
     },

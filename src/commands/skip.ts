@@ -6,6 +6,8 @@ import {
 import { Command } from '../command'
 import { songQueue, playNextSong } from '../music'
 import { BotInstance } from '../bot'
+import { getErrorEmbed, getSuccessEmbed } from '../embeds'
+import { USER_MUST_BE_IN_CHANNEL } from '../errors'
 
 export const Skip: Command = {
     name: 'skip',
@@ -13,12 +15,13 @@ export const Skip: Command = {
     type: ApplicationCommandType.ChatInput,
     run: async (botInstance: BotInstance, interaction: CommandInteraction) => {
         if (!songQueue.length) {
-            const content =
+            const description =
                 'MusicBot is currently not playing. To add a song to queue, use /play'
+            const errorEmbed = getErrorEmbed(description)
 
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [errorEmbed],
             })
             return
         }
@@ -33,18 +36,19 @@ export const Skip: Command = {
             }
 
             const skippedSong = await playNextSong(skipSongParams)
-
-            const content = 'Skipped song: ' + skippedSong?.info.title
+            const description = 'Skipped song: ' + skippedSong?.info.title
+            const successEmbed = getSuccessEmbed(description)
 
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [successEmbed],
             })
         } else {
-            const content = 'User must be in a channel.'
+            const errorEmbed = getErrorEmbed(USER_MUST_BE_IN_CHANNEL)
+
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [errorEmbed],
             })
         }
     },

@@ -6,7 +6,8 @@ import {
 import { Command } from '../command'
 import { stopPlayer } from '../music'
 import { BotInstance } from '../bot'
-import { UNKNOWN_ERROR } from '../errors'
+import { UNKNOWN_ERROR, USER_MUST_BE_IN_CHANNEL } from '../errors'
+import { getErrorEmbed, getStopPlayingEmbed } from '../embeds'
 
 export const Stop: Command = {
     name: 'stop',
@@ -20,22 +21,22 @@ export const Stop: Command = {
                 const stopPlayerParams = {
                     manager: botInstance.musicManager,
                     guildId: interaction.guildId,
-                    channelId: member.voice.channelId,
                 }
 
                 await stopPlayer(stopPlayerParams)
 
-                const content = 'MusicBot has stopped'
+                const stopPlayingEmbed = getStopPlayingEmbed()
 
                 await interaction.followUp({
                     ephemeral: true,
-                    content,
+                    embeds: [stopPlayingEmbed],
                 })
             } else {
-                const content = 'User must be in a channel'
+                const errorEmbed = getErrorEmbed(USER_MUST_BE_IN_CHANNEL)
+
                 await interaction.followUp({
                     ephemeral: true,
-                    content,
+                    embeds: [errorEmbed],
                 })
             }
         } catch (e: unknown) {

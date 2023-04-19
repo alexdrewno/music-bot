@@ -8,6 +8,8 @@ import { Command } from '../command'
 import { addSongToQueue, searchSongs, songQueue } from '../music'
 import { TrackData } from 'lavacord'
 import { BotInstance } from '../bot'
+import { getErrorEmbed, getSongQueueEmbed } from '../embeds'
+import { USER_MUST_BE_IN_CHANNEL } from '../errors'
 
 export const Play: Command = {
     name: 'play',
@@ -29,16 +31,16 @@ export const Play: Command = {
             searchQuery
         )
         if (!trackResult) {
-            const content =
+            const description =
                 'Could not find song for search query: ' + searchQuery
+            const errorEmbed = getErrorEmbed(description)
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [errorEmbed],
             })
         }
 
         const trackData = trackResult as TrackData
-
         const member = interaction.member as GuildMember
 
         if (member.voice && member.voice.channelId && interaction.guildId) {
@@ -51,28 +53,20 @@ export const Play: Command = {
 
             await addSongToQueue(addSongParams)
         } else {
-            const content = 'User must be in a channel.'
+            const errorEmbed = getErrorEmbed(USER_MUST_BE_IN_CHANNEL)
             await interaction.followUp({
                 ephemeral: true,
-                content,
+                embeds: [errorEmbed],
             })
             return
         }
 
-        // TODO make this embed
-        const content =
-            'Added to queue: ' +
-            trackData.info.title +
-            '\n\nCurrent queue:\n' +
-            songQueue
-                .map((song) => {
-                    return song.info.title
-                })
-                .join('\n')
+        const embedTitle = `Added to queue: ${trackData.info.title}`
+        const embed = getSongQueueEmbed(embedTitle, songQueue)
 
         await interaction.followUp({
             ephemeral: true,
-            content,
+            embeds: [embed],
         })
     },
 }
