@@ -8,8 +8,14 @@ import {
     LAVALINK_PORT,
 } from './config/lavalink'
 
-export let songQueue: TrackData[] = []
+// Todo: could use redis
+export const songQueues: SongQueues = {}
+
 const DEFAULT_VOLUME = 60
+
+export type SongQueues = {
+    [guildId: string]: TrackData[]
+}
 
 export type AddSongParams = {
     manager: Manager
@@ -52,19 +58,12 @@ export async function initManager(client: Client) {
 }
 
 export async function searchSongs(manager: Manager, search: string) {
-    try {
-        const ytSearch = 'ytsearch:' + search
-        const node = manager.idealNodes[0]
-        const data = await Rest.load(node, ytSearch)
+    const ytSearch = 'ytsearch:' + search
+    const node = manager.idealNodes[0]
+    const data = await Rest.load(node, ytSearch)
 
-        if (data.tracks) {
-            return data.tracks[0]
-        }
-
-        return
-    } catch (e) {
-        console.error(e)
-        return
+    if (data.tracks) {
+        return data.tracks[0]
     }
 }
 
@@ -80,7 +79,9 @@ export async function startPlayer({
             node: LAVALINK_NODE_ID,
         })
 
-        await player.play(songQueue[0].track, {
+        const nextSong = songQueues[guildId][0].track
+
+        await player.play(nextSong, {
             volume: DEFAULT_VOLUME,
         })
 
@@ -89,12 +90,16 @@ export async function startPlayer({
             if (data.type === 'TrackEndEvent' && data.reason === 'REPLACED')
                 return // Ignore REPLACED reason to prevent skip loops
 
+            //Get song queue for guild
+            const songQueue = songQueues[guildId]
+
             // Remove the song from queue
-            songQueue = songQueue.slice(1)
+            const newQueue = songQueue.slice(1)
+            songQueues[guildId] = newQueue
 
             // If there are still songs in the queue, play the next
-            if (songQueue.length) {
-                await player.play(songQueue[0].track, {
+            if (newQueue.length) {
+                await player.play(newQueue[0].track, {
                     volume: DEFAULT_VOLUME,
                 })
             } else {
@@ -113,6 +118,11 @@ export async function addSongToQueue({
     channelId,
     trackData,
 }: AddSongParams) {
+    if (!songQueues[guildId]) {
+        songQueues[guildId] = []
+    }
+    const songQueue = songQueues[guildId]
+
     songQueue.push(trackData)
     if (songQueue.length === 1) {
         const startPlayerParams = { manager, guildId, channelId }
@@ -125,6 +135,8 @@ export async function playNextSong({
     guildId,
     channelId,
 }: PlayerJoinParams): Promise<TrackData | undefined> {
+    const songQueue = songQueues[guildId]
+
     if (!songQueue.length) return
 
     const player = await manager.join({
@@ -142,11 +154,12 @@ export async function playNextSong({
     await player.pause(true)
 
     // Remove the song from queue
-    songQueue = songQueue.slice(1)
+    const newQueue = songQueue.slice(1)
+    songQueues[guildId] = newQueue
 
     // If there are still songs in the queue, play the next
-    if (songQueue.length) {
-        await player.play(songQueue[0].track, {
+    if (newQueue) {
+        await player.play(newQueue[0].track, {
             volume: DEFAULT_VOLUME,
         })
     }
@@ -155,6 +168,8 @@ export async function playNextSong({
 }
 
 export async function clearQueue({ manager, guildId }: ManagerParams) {
+    const songQueue = songQueues[guildId]
+
     if (!songQueue.length) return
 
     const player = manager.players.get(guildId)
@@ -166,7 +181,7 @@ export async function clearQueue({ manager, guildId }: ManagerParams) {
         await player.pause(true)
     }
 
-    songQueue = []
+    songQueues[guildId] = []
 }
 
 export async function stopPlayer({ manager, guildId }: ManagerParams) {
