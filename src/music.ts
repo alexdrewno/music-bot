@@ -158,7 +158,7 @@ export async function playNextSong({
     songQueues[guildId] = newQueue
 
     // If there are still songs in the queue, play the next
-    if (newQueue) {
+    if (newQueue.length) {
         await player.play(newQueue[0].track, {
             volume: DEFAULT_VOLUME,
         })
