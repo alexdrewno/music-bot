@@ -9,7 +9,6 @@ import { addSongToQueue, searchSongs, songQueues } from '../music'
 import { TrackData } from 'lavacord'
 import { BotInstance } from '../bot'
 import { getErrorEmbed, getSongQueueEmbed } from '../embeds'
-import { USER_MUST_BE_IN_CHANNEL } from '../errors'
 
 export const Play: Command = {
     name: 'play',
@@ -25,16 +24,7 @@ export const Play: Command = {
     ],
     run: async (botInstance: BotInstance, interaction: CommandInteraction) => {
         const member = interaction.member as GuildMember
-
-        // User must be in channel
-        if (!member.voice || !member.voice.channelId || !interaction.guildId) {
-            const errorEmbed = getErrorEmbed(USER_MUST_BE_IN_CHANNEL)
-            await interaction.followUp({
-                ephemeral: true,
-                embeds: [errorEmbed],
-            })
-            return
-        }
+        if (!interaction.guildId || !member.voice.channelId) return
 
         // Find the song in search query
         const searchQuery = interaction.options.data[0].value as string
