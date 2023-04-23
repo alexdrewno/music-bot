@@ -16,11 +16,12 @@
 
 ### Requirements & Dependencies
 * A discord api key
+* A lavalink process (an example configuration can be found in /lavalink-client)
 
 ### Setup
 
 1. Set environment variables (Look at ```.env.config``` for the necessary variables)
-2. Start lavalink process: ```java -jar Lavalink.jar``` (an example configuration is in /lavalink-client)
+2. Start lavalink process: ```java -jar Lavalink.jar``` 
 3. Start the bot: ```yarn start```
 
 <br/>
