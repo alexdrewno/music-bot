@@ -20,7 +20,7 @@
 
 ### Setup
 
-1. Set environment variables (Look at ```.env.config``` for the necessary variables)
+1. Set environment variables (Look at ```.env.example``` for the necessary variables)
 2. Start lavalink process: ```java -jar Lavalink.jar``` 
 3. Start the bot: ```yarn start```
 
